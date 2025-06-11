@@ -19,8 +19,11 @@ def main():
     config_path = "config.toml"
     config = load_config()
 
+    # Load dataset
     df = store.get_processed("transformed_dataset.csv").sort_values("event_timestamp")
     target_column = config["target"]
+
+    # Try all these features first
     candidate_features = [
         "driver_distance",
         "event_hour",
@@ -32,23 +35,25 @@ def main():
         "driver_completed_days",
     ]
 
-    # Split
+    # Do a train/test split (keep time order)
     df_train, df_test = train_test_split(df, test_size=config["test_size"], random_state=42, shuffle=False)
 
-    # Feature engineering
+    # Build driver stats from train data
     driver_stats = build_driver_static_features(df_train, shuffle_features=True)
+
+    # Add these stats to train/test
     df_train = add_driver_static_features(df_train, driver_stats)
     df_test = add_driver_static_features(df_test, driver_stats)
 
-    # Drop missing values
+    # Drop rows with missing values
     df_train = df_train[candidate_features + [target_column]].dropna()
     df_test = df_test[candidate_features + [target_column]].dropna()
 
-    # Initial training
+    # Train initial model
     rf = RandomForestClassifier(**config["random_forest"])
     rf.fit(df_train[candidate_features], df_train[target_column])
 
-    # Permutation importance
+    # Find important features
     importance_df = compute_permutation_importance(
         model=rf,
         X_test=df_test[candidate_features],
@@ -58,28 +63,28 @@ def main():
         random_state=42
     )
 
-    # Select top-K features
+    # Pick top K
     top_k = 5
     selected_features = importance_df["feature"].head(top_k).tolist()
     print("Selected top features based on permutation importance:", selected_features)
 
-    # Update config.toml with selected features
+    # Save them to config
     config_data = toml.load(config_path)
     config_data["features"] = selected_features
     with open(config_path, "w") as f:
         toml.dump(config_data, f)
     print("Updated `features` in config.toml.")
 
-    # Reload config to use updated features
+    # Reload with new config
     config = load_config()
     final_features = config["features"]
 
-    # Final training
+    # Final model training
     rf_final = RandomForestClassifier(**config["random_forest"])
     model = SklearnClassifier(rf_final, final_features, target_column)
     model.train(df_train[final_features + [target_column]])
 
-    # Evaluation
+    # Evaluate and save
     metrics = model.evaluate(df_test[final_features + [target_column]])
     store.put_model("saved_model.pkl", model)
     store.put_metrics("metrics.json", metrics)
