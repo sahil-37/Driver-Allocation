@@ -39,6 +39,7 @@ class SklearnClassifier(Classifier):
         y_pred = self.clf.predict(X_test)
         y_proba = None
         
+        
         if hasattr(self.clf, "predict_proba"):
             y_proba = self.clf.predict_proba(X_test)[:, 1]
 
