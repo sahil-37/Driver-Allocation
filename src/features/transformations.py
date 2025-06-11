@@ -107,7 +107,6 @@ def build_driver_static_features(df_train: pd.DataFrame, shuffle_features: bool 
 
     return final_stats
 
-
 def add_driver_static_features(df: pd.DataFrame, *stats: pd.DataFrame) -> pd.DataFrame:
     static_columns = [
         "driver_total_accepted", "driver_total_offers", "active_days",
