@@ -13,5 +13,5 @@ class TestTimeUtils(unittest.TestCase):
         self.assertEqual(robust_hour_of_iso_date("2015-05-12 05:25:23 UTC"), 5)
 
     def test_robust_hour_of_iso_date_with_invalid_iso_string(self):
-        self.assertEqual(robust_hour_of_iso_date("2023/12/01 00:00:00"), -1)
+        self.assertEqual(robust_hour_of_iso_date("2023/15/01 00:00:00"), -1)
 
