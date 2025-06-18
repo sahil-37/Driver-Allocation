@@ -4,7 +4,7 @@ from typing import Dict, List
 import numpy as np
 import pandas as pd
 from sklearn.base import BaseEstimator
-from sklearn.metrics import balanced_accuracy_score, accuracy_score, precision_score, recall_score, f1_score, roc_auc_score, confusion_matrix
+from sklearn.metrics import recall_score, confusion_matrix, average_precision_score, classification_report, precision_score, f1_score
 
 
 class Classifier(ABC):
@@ -45,20 +45,20 @@ class SklearnClassifier(Classifier):
 
         metrics = {}
 
-        metrics["accuracy"] = accuracy_score(y_test, y_pred)
-        metrics["precision"] = precision_score(y_test, y_pred, zero_division=0)
-        metrics["recall"] = recall_score(y_test, y_pred, zero_division=0)
-        metrics["f1_score"] = f1_score(y_test, y_pred, zero_division=0)
-        metrics["confusion_matrix"] = confusion_matrix(y_test, y_pred).tolist() 
-        #balanced metrics
-        metrics["balanced_accuracy"] = balanced_accuracy_score(y_test, y_pred)
-        metrics["balanced_precision"] = precision_score(y_test, y_pred, zero_division=0, average='macro')
-        metrics["balanced_recall"] = recall_score(y_test, y_pred, zero_division=0, average='macro')
-        metrics["balanced_f1_score"] = f1_score(y_test, y_pred, zero_division=0, average='macro')
+        tn, fp, fn, tp = confusion_matrix(y_test, y_pred).ravel()
+
+        metrics = {
+            "precision": precision_score(y_test,y_pred),
+            "recall": recall_score(y_test,y_pred),
+            "f1_score": f1_score(y_test,y_pred),
+            "confusion_matrix":    [[int(tn), int(fp)], [int(fn), int(tp)]],
+            "fpr":                 fp / (fp + tn) if (fp + tn) else 0.0,   # False-Positive Rate
+            "specificity":         tn / (tn + fp) if (tn + fp) else 0.0,   # True-Negative Rate
+        }
+        metrics["classification_report"] = classification_report(y_test,y_pred, output_dict=True, zero_division=0)
 
         if y_proba is not None:
-            metrics["roc_auc"] = roc_auc_score(y_test, y_proba)
-
+            metrics["pr_auc"]   = average_precision_score(y_test, y_proba)  # area under PR curve
         return metrics
 
     def predict(self, df: pd.DataFrame):
