@@ -1,93 +1,90 @@
 import toml
+import pandas as pd
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.model_selection import train_test_split
-
-from src.features.feature_selection import compute_permutation_importance
-from src.features.transformations import (
-    build_driver_static_features,
-    add_driver_static_features,
-)
+from src.features.transformations import build_driver_static_features, add_driver_static_features
 from src.models.classifier import SklearnClassifier
 from src.utils.config import load_config
-from src.utils.guardrails import validate_evaluation_metrics
 from src.utils.store import AssignmentStore
+from src.utils.guardrails import validate_evaluation_metrics
 
 
 @validate_evaluation_metrics
 def main():
     store = AssignmentStore()
-    config_path = "config.toml"
     config = load_config()
+    target = config["target"]
+    config_path = "config.toml"
 
-    # Load dataset
+    # Load and sort the dataset
     df = store.get_processed("transformed_dataset.csv").sort_values("event_timestamp")
-    target_column = config["target"]
 
-    # Try all these features first
-    candidate_features = [
-        "driver_distance",
-        "event_hour",
-        "is_weekend",
-        "driver_acceptance_rate",
-        "driver_avg_daily_acceptances",
-        "driver_avg_trip_distance_per_day",
-        "driver_avg_ride_duration_per_day",
-        "driver_completed_days",
-    ]
+    # Initial train/test split
+    df_train_full, df_test = train_test_split(df, test_size=config["test_size"], shuffle=False)
 
-    # Do a train/test split (keep time order)
-    df_train, df_test = train_test_split(df, test_size=config["test_size"], random_state=42, shuffle=False)
+    # Split df_train_full into train/validation
+    df_train, df_val = train_test_split(df_train_full, test_size=0.2, shuffle=False)
 
-    # Build driver stats from train data
+    # Build static features from training only
     driver_stats = build_driver_static_features(df_train, shuffle_features=True)
 
-    # Add these stats to train/test
+    # Apply to train/val/test
     df_train = add_driver_static_features(df_train, driver_stats)
-    df_test = add_driver_static_features(df_test, driver_stats)
+    df_val   = add_driver_static_features(df_val, driver_stats)
+    df_test  = add_driver_static_features(df_test, driver_stats)
 
-    # Drop rows with missing values
-    df_train = df_train[candidate_features + [target_column]].dropna()
-    df_test = df_test[candidate_features + [target_column]].dropna()
+    # Candidate features (all available)
+    candidate_features = [
+        "driver_distance", "event_hour", "is_weekend",
+        "driver_acceptance_rate", "driver_avg_daily_acceptances",
+        "driver_avg_ride_duration_per_day",
+        "driver_completed_days"
+    ]
 
-    # Train initial model
+    # Drop missing rows
+    df_train = df_train[candidate_features + [target]].dropna()
+    df_val   = df_val[candidate_features + [target]].dropna()
+    df_test  = df_test[candidate_features + [target]].dropna()
+
+    # Step 1: Train model on all features
     rf = RandomForestClassifier(**config["random_forest"])
-    rf.fit(df_train[candidate_features], df_train[target_column])
+    rf.fit(df_train[candidate_features], df_train[target])
 
-    # Find important features
-    importance_df = compute_permutation_importance(
-        model=rf,
-        X_test=df_test[candidate_features],
-        y_test=df_test[target_column],
-        scoring="precision",
-        n_repeats=10,
-        random_state=42
-    )
+    # Step 2: Get feature importances
+    importances = pd.Series(rf.feature_importances_, index=candidate_features)
+    sorted_features = importances.sort_values(ascending=False)
 
-    # Pick top K
-    top_k = 5
-    selected_features = importance_df["feature"].head(top_k).tolist()
-    print("Selected top features based on permutation importance:", selected_features)
+    # Step 3-4: Try different top-k feature sets and evaluate
+    results = []
+    for k in range(2, 6):
+        top_k_features = sorted_features.head(k).index.tolist()
+        model = SklearnClassifier(RandomForestClassifier(**config["random_forest"]), top_k_features, target)
+        model.train(df_train[top_k_features + [target]])
+        metrics = model.evaluate(df_val[top_k_features + [target]])
+        metrics["num_features"] = k
+        results.append((top_k_features, metrics))
 
-    # Save them to config
+    # Step 5: Choose best performing based on F1 (or another)
+    best_result = min(results, key=lambda x: x[1]["fpr"])
+    best_features, best_metrics = best_result
+    print(f"Selected features: {best_features}")
+    print(f"Validation fpr: {best_metrics['fpr']:.4f}")
+
+    # Final model on train + val
+    df_full_train = pd.concat([df_train, df_val], ignore_index=True)
+    final_model = SklearnClassifier(RandomForestClassifier(**config["random_forest"]), best_features, target)
+    final_model.train(df_full_train[best_features + [target]])
+
+    # Evaluate on test set
+    test_metrics = final_model.evaluate(df_test[best_features + [target]])
+    # Save outputs
     config_data = toml.load(config_path)
-    config_data["features"] = selected_features
+    config_data["features"] = best_features
     with open(config_path, "w") as f:
         toml.dump(config_data, f)
-    print("Updated `features` in config.toml.")
 
-    # Reload with new config
-    config = load_config()
-    final_features = config["features"]
-
-    # Final model training
-    rf_final = RandomForestClassifier(**config["random_forest"])
-    model = SklearnClassifier(rf_final, final_features, target_column)
-    model.train(df_train[final_features + [target_column]])
-
-    # Evaluate and save
-    metrics = model.evaluate(df_test[final_features + [target_column]])
-    store.put_model("saved_model.pkl", model)
-    store.put_metrics("metrics.json", metrics)
+    store.put_model("saved_model.pkl", final_model)
+    store.put_metrics("metrics.json", test_metrics)
     store.put_processed("driver_static_features.csv", driver_stats)
 
 
