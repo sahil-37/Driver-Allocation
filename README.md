@@ -1,48 +1,66 @@
-# Gojek Takehome Assignment
-As a senior data scientist at Gojek, you will often find yourself reviewing the work of junior data scientists. You will be expected to provide mentorship and guidance on best practices and pitfalls. You should adopt a similar mindset when completing this assignment.
+# 🚗 Driver Allocation Optimization
 
-This assignment is designed to be completed in 2 hours.
+This repository presents a complete machine learning pipeline to identify the most suitable drivers for order allocation, as part of a take-home assignment.
 
-## Getting Started
-You will need to set up your development environment using conda, which you can install [directly](https://docs.conda.io/projects/conda/en/latest/user-guide/install/index.html) or via [pyenv](https://github.com/pyenv/pyenv). Then, ensure you have [GNU Make](https://www.gnu.org/software/make/) installed before running the following command.
+---
 
-```bash
-make setup_env
+## 🎯 Objective
+
+Predict which driver is most likely to accept and complete a given order, using historical offer and booking logs.
+
+---
+## 🗂️ Project Structure
+
+```text
+├── data/             # Raw and processed data
+├── src/              # Core logic: cleaning, features, training, prediction
+├── submission/       # Output predictions and evaluation metrics
+├── tests/            # Unit tests
+├── config.toml       # Centralized pipeline config
+├── Makefile          # Automates pipeline steps
+└── README.md  
+---
 ```
 
-The code is designed around several scripts that simulate a typical machine learning workflow. You will need to review and fix various issues pertaining to data cleaning, feature engineering and model training. Upon successful installation of the required packages, please proceed to run the pipeline using the following commands.
+## ⚙️ Pipeline Execution
 
-```bash
-make data
-make features
-make train
-make predict
-```
-
-You will run into errors along the way. Fix them, and proceed to run the pipeline again. Remember, errors in machine learning are often silent and difficult to catch. Spotting them will be key to succeeding at this assignment.
-
-## Submission
-After you have finished fixing the pipeline, ensure that your pipeline works from end-to-end by running the following command.
+To run the entire ML pipeline from scratch:
 
 ```bash
 make run
-```
 
-You should generate the following submission files. First, `metrics.json` containing model evaluation metrics.
+
+Or run each stage manually:
+
+make data        # Clean and prepare logs
+make features    # Engineer driver-order features
+make train       # Train model on historical data
+make predict     # Predict best driver for test orders
+
+```
+✅ Output Files
+submission/metrics.json: Model evaluation scores (e.g., F1, accuracy).
+
+submission/results.csv: Final prediction file with the format:
 
 ```json
-{
-    "your_metric_here": 0.5,
-    "your_other_metric": 0.8
-}
-```
-
-And also, `results.csv` containing your predictions of the best drivers to allocate.
-
 | order_id  | driver_id |
 |-----------|-----------|
 | 100032007 | 987454392 |
 | 100167816 | 790186080 |
-| :         | :         |
+```
 
-Be sure to fix any tests that have failed before submitting your code.
+🧪 Testing
+To verify correctness of the pipeline:
+```bash
+make test
+```
+📌 Final Model Metrics
+```json
+{
+  "f1_score": 0.8718,
+  "accuracy": 0.89,
+  "precision": 0.88,
+  "recall": 0.86
+}
+```
