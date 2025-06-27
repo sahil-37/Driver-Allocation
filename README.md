@@ -24,7 +24,6 @@ Predict which driver is most likely to accept and complete a given order, using 
 ```
 Note:
 Due to GitHub's file size restrictions, the data/raw/booking_log.csv file has been excluded from version control.
-You can manually add it to the data/raw/ folder if running the full pipeline locally.
 
 ## ⚙️ Pipeline Execution
 
