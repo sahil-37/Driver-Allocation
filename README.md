@@ -12,14 +12,15 @@ Predict which driver is most likely to accept and complete a given order, using 
 ## 🗂️ Project Structure
 
 ```text
-├── data/             # Raw and processed data
+├── data/             
+│   ├── raw/          # Source data files (excluding large booking_log.csv)
+│   └── processed/    # Cleaned and feature-ready data
 ├── src/              # Core logic: cleaning, features, training, prediction
 ├── submission/       # Output predictions and evaluation metrics
 ├── tests/            # Unit tests
 ├── config.toml       # Centralized pipeline config
 ├── Makefile          # Automates pipeline steps
-└── README.md  
----
+└── README.md 
 ```
 
 ## ⚙️ Pipeline Execution
