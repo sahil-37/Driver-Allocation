@@ -1,4 +1,4 @@
-features = ["driver_distance","is_weekend","event_hour","driver_avg_ride_duration_per_day", "driver_avg_trip_distance_per_day"]
+features = [ "driver_distance", "driver_avg_ride_duration_per_day", "driver_avg_daily_acceptances",]
 target = "is_accepted"
 test_size = 0.2
 

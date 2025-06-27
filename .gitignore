@@ -14,3 +14,7 @@ models/*.pkl
 
 # jupyter
 .ipynb_checkpoints/
+.DS_Store
+*.zip
+*.pdf
+Miniconda3-latest-MacOSX-arm64.sh

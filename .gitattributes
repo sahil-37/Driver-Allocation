@@ -1,0 +1,2 @@
+*.csv filter=lfs diff=lfs merge=lfs -text
+data/raw/booking_log.csv filter=lfs diff=lfs merge=lfs -text
