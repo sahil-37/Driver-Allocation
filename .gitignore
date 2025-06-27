@@ -18,3 +18,5 @@ models/*.pkl
 *.zip
 *.pdf
 Miniconda3-latest-MacOSX-arm64.sh
+data/raw/booking_log.csv
+Miniconda3-latest-MacOSX-arm64.sh
